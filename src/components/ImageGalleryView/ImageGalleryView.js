@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { toast } from 'react-toastify';
 import PropTypes from 'prop-types';
 
 import ImageGallery from '../ImageGallery';
@@ -22,6 +23,7 @@ export default class ImageGalleryView extends Component {
     status: Status.IDLE,
     page: 1,
   };
+
   componentDidUpdate(prevProps, prevState) {
     const prevQuery = prevProps.searchQuery;
     const nextQuery = this.props.searchQuery;
@@ -49,6 +51,14 @@ export default class ImageGalleryView extends Component {
     imageAPI
       .fetchImages(nextQuery, nextPage)
       .then(images => {
+        if (images.totalHits === 0) {
+          toast.error(`No images found on ${nextQuery}.`);
+          this.setState({
+            status: Status.REJECTED,
+          });
+          return;
+        }
+
         this.setState({
           images: images.hits,
           status: Status.RESOLVED,
