@@ -17,7 +17,7 @@ const Status = {
 
 export default class ImageGalleryView extends Component {
   state = {
-    images: null,
+    images: [],
     error: null,
     status: Status.IDLE,
     page: 1,
@@ -28,28 +28,48 @@ export default class ImageGalleryView extends Component {
     const prevPage = prevState.page;
     const nextPage = this.state.page;
 
-    if (prevQuery !== nextQuery) {
-      this.setState({ page: 1 });
+    if (prevState.searchQuery !== this.state.searchQuery) {
+      this.setState({ images: [], page: 1, error: null });
     }
 
-    if (prevQuery !== nextQuery || prevPage !== nextPage) {
-      this.setState({ status: Status.PENDING });
+    if (prevQuery !== nextQuery) {
+      this.setState({ images: [], error: null });
+      this.handleImageSearch(nextQuery, nextPage);
+    }
 
-      imageAPI
-        .fetchImages(nextQuery, nextPage)
-        .then(images => {
-          if (images.total !== 0) {
-            this.setState({ images, status: Status.RESOLVED });
-            return;
-          }
-          return Promise.reject(
-            new Error('Sorry, nothing was found. Try again!'),
-          );
-        })
-
-        .catch(error => this.setState({ error, status: Status.REJECTED }));
+    if (prevPage !== nextPage && prevPage < nextPage) {
+      this.handleLoadMore(nextQuery, nextPage);
     }
   }
+  handleImageSearch = nextQuery => {
+    this.setState({ status: Status.PENDING });
+
+    let nextPage = 1;
+
+    imageAPI
+      .fetchImages(nextQuery, nextPage)
+      .then(images => {
+        this.setState({
+          images: images.hits,
+          status: Status.RESOLVED,
+        });
+      })
+      .catch(error => this.setState({ error, status: Status.REJECTED }));
+  };
+
+  handleLoadMore = (nextQuery, nextPage) => {
+    this.setState({ status: Status.PENDING });
+
+    imageAPI
+      .fetchImages(nextQuery, nextPage)
+      .then(response =>
+        this.setState(prevState => ({
+          images: [...prevState.images, ...response.hits],
+        })),
+      )
+      .catch(error => this.setState({ error, status: Status.REJECTED }))
+      .finally(() => this.setState({ status: Status.RESOLVED }));
+  };
 
   onClickLoadMore = () => {
     this.setState(prevState => ({
@@ -58,7 +78,7 @@ export default class ImageGalleryView extends Component {
   };
 
   render() {
-    const { status } = this.state;
+    const { status, images, page } = this.state;
 
     if (status === Status.IDLE) {
       return <img src={idleImage} alt="lets-give-it-a-try"></img>;
@@ -82,8 +102,10 @@ export default class ImageGalleryView extends Component {
     if (status === Status.RESOLVED) {
       return (
         <>
-          <ImageGallery images={this.state.images.hits} />
-          <Button onClick={this.onClickLoadMore} page={this.state.page} />
+          <ImageGallery images={images} />
+          {images.length > 0 && (
+            <Button onClick={this.onClickLoadMore} page={page} />
+          )}
         </>
       );
     }

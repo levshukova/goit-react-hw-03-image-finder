@@ -10,6 +10,7 @@ export default class App extends Component {
   state = {
     searchQuery: '',
   };
+
   handleFormSubmit = searchQuery => {
     this.setState({ searchQuery });
   };
